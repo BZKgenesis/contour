@@ -2,18 +2,25 @@ import numpy as np
 from PIL import Image
 import moderngl
 import time
+import matplotlib.pyplot as plt
 
-COMPARAISONX = 0.5 # Séparation de l'image pour pouvoir comparer avec et sans le filtre (0.0 - 1.0)
-SEUIL = 0.55 # Seuil de détection des contours (0.0 - 1.0)
+COMPARAISONX = 1. # Séparation de l'image pour pouvoir comparer avec et sans le filtre (0.0 - 1.0)
+SEUIL = 0. # Seuil de détection des contours (0.0 - 1.0)
+BENCHMARK = True # Passer en mode mesure de performance (True) ou en mode rendu (False)
 
-def sobelFilter(ImageName):
+# Création du contexte OpenGL
+ctx = moderngl.create_standalone_context()
+print("Vendor:", ctx.info['GL_VENDOR'])
+print("Renderer:", ctx.info['GL_RENDERER'])
+print("Version:", ctx.info['GL_VERSION'])
+#print("Shading Language Version:", ctx.info['GL_SHADING_LANGUAGE_VERSION'])
+
+def OpenGlEnv(ImageName, fragmentShaderData):
     # Charger l'image
     image = Image.open(ImageName).convert('RGB') # on ouvre l'image et on la converti en RGB (pour supprimer le canal alpha si il existe)
     image_data = np.array(image).astype('f4') / 255.0  # Normaliser les couleurs (0.0 - 1.0)
     # f4 : float 32 bits
 
-    # Création du contexte OpenGL
-    ctx = moderngl.create_standalone_context()  
 
     # Création de la texture de l'image
     texture = ctx.texture(image.size, 3, (image_data * 255).astype('u1').tobytes()) # on reprend l'image convertie en RGB et on la converti en 8 bits
@@ -27,9 +34,6 @@ def sobelFilter(ImageName):
     # fbo : framebuffer object (objet qui contient les textures de rendu)
 
 
-    with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
-        #'r' : read (lecture seule)
-        data = myfile.read()
 
     # Création du programme (vertex + fragment shaders)
     prog = ctx.program( # meme vertex shader pour tous car on ne touche pas aux vertex (on ne fait que passer les coordonnées de texture)
@@ -43,7 +47,7 @@ def sobelFilter(ImageName):
             v_texcoord = in_texcoord;
         }
         """,
-        fragment_shader=data
+        fragment_shader=fragmentShaderData
     )  
 
     prog['Resolution'] = (image.size[0], image.size[1]) # Récupérer la résolution de l'image (pour le calcul de la taille d'un pixel)
@@ -82,11 +86,75 @@ def sobelFilter(ImageName):
     # On retourne l'image
     return output_image
 
+def sobelFilter(ImageName):
+    
+    with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    return OpenGlEnv(ImageName, data) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+
+def differenceGaussian(ImageName):
+    
+    with open ("differenceGauss.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    return OpenGlEnv(ImageName, data) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+    
+execution_times = {}
 
 for i in range(1, 5):
-    start = time.time()
-    img = sobelFilter(str(i)+".png")
-    end = time.time()
-    elapsed = end - start
-    print("img "+str(i)+" : ", round (elapsed * 1000), "ms")
-    img.save("output\\output"+str(i)+".png")
+    if BENCHMARK:
+        elapsed_moy = 0
+        execution_times["Image "+str(i)] = []
+        for j in range(1, 20):
+            start = time.time()
+            img = sobelFilter(str(i)+".png")
+            end = time.time()
+            elapsed = end - start
+            execution_times["Image "+str(i)].append(elapsed)
+            elapsed_moy += elapsed
+        elapsed_moy /= 10
+        print("img "+str(i)+" : ", round (elapsed_moy * 1000), "ms")
+    else:
+        sobelFilter(str(i)+".png").save("output\\output"+str(i)+".png")
+
+colors = ['red', 'blue', 'green', 'orange']
+
+if BENCHMARK:
+    
+    # Création du graphique
+    plt.figure(figsize=(10, 6))
+
+    # Tracer les lignes pour chaque image
+    for i, (image, times) in enumerate(execution_times.items()):
+        # Placer les points et les lignes
+        plt.plot(range(1, len(times) + 1), times, marker='o', color=colors[i], label=image)
+
+    # Configurer les labels et le titre
+    plt.xlabel('Essais')
+    plt.ylabel('Temps d\'exécution (secondes)')
+    plt.title('Comparaison des temps d\'exécution pour différentes images')
+    plt.yscale('log')
+    plt.xticks(range(1, len(next(iter(execution_times.values()))) + 1), [f'{i}' for i in range(1, len(next(iter(execution_times.values()))) + 1)])
+
+    # Ajouter la légende
+    plt.legend()
+
+    # Afficher le graphique
+    plt.show()
+
+"""
+specs:
+CPU:i5-12450H
+RAM:8,00 Go
+GPU: Intel(R) UHD Graphics
+
+
+perfs:
+img 1 :  55 ms 
+img 2 :  31 ms
+img 3 :  75 ms
+img 4 :  1212 ms (1s 212 ms)
+"""
