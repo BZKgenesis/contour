@@ -39,10 +39,30 @@ def sobel_filter_with_color_channels(image_path):
             # Stocker les gradients
             gradient_x[i, j] = gx
             gradient_y[i, j] = gy
+    gradient_x_abs = np.abs(gradient_x)
+    gradient_y_abs = np.abs(gradient_y)
+
+
+    gradient = np.sqrt(gradient_x**2 + gradient_y**2)
+
+    gradient_x_norm = gradient_x / gradient
+    gradient_y_norm = gradient_y / gradient
+
+    for i in range(1, height-1):
+        for j in range(1, width-1):
+            # Extraire la région 3x3
+            if not np.isnan(gradient_x_norm[i,j]) and  (gradient_x[i, j] < gradient_y[i + round(gradient_x_norm[i,j]), j + round(gradient_y_norm[i,j])] and gradient_x[i, j] < gradient_y[i - round(gradient_x_norm[i,j]), j - round(gradient_y_norm[i,j])]):
+                gradient[i, j] = 0
+    
     
     # Normaliser les gradients pour qu'ils soient dans la plage [0, 255]
     gradient_x = np.abs(gradient_x)
     gradient_y = np.abs(gradient_y)
+
+    #gradient = np.sqrt(gradient_x**2 + gradient_y**2)
+
+    #gradient = gradient.astype(np.uint8)
+    img = Image.fromarray(gradient)
     
     # Éviter la division par zéro en cas où les max soient 0
     #if gradient_x.max() > 0:
@@ -62,16 +82,17 @@ def sobel_filter_with_color_channels(image_path):
     # Convertir le tableau numpy en image
     sobel_image = Image.fromarray(colored_image)
     
-    return sobel_image
+    return img
+    #return sobel_image
 
 
-for i in range(1, 5):
+for i in range(1, 2):
     start = time.time()
     img = sobel_filter_with_color_channels(str(i)+".png")
     end = time.time()
     elapsed = end - start
     print("img "+str(i)+" : ", round (elapsed * 1000), "ms")
-    img.save("output\\CPUoutput"+str(i)+".png")
+    img.save("output\\CPUoutput_"+str(i)+".png")
 
 
 """
