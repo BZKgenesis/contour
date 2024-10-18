@@ -5,8 +5,8 @@ import time
 import matplotlib.pyplot as plt
 
 COMPARAISONX = 1. # Séparation de l'image pour pouvoir comparer avec et sans le filtre (0.0 - 1.0)
-SEUIL = 0. # Seuil de détection des contours (0.0 - 1.0)
-BENCHMARK = True # Passer en mode mesure de performance (True) ou en mode rendu (False)
+SEUIL = 1.15 # Seuil de détection des contours (0.0 - 1.0)
+BENCHMARK = False # Passer en mode mesure de performance (True) ou en mode rendu (False)
 
 # Création du contexte OpenGL
 ctx = moderngl.create_standalone_context()
@@ -15,7 +15,7 @@ print("Renderer:", ctx.info['GL_RENDERER'])
 print("Version:", ctx.info['GL_VERSION'])
 #print("Shading Language Version:", ctx.info['GL_SHADING_LANGUAGE_VERSION'])
 
-def OpenGlEnv(ImageName, fragmentShaderData):
+def OpenGlEnv(ImageName, fragmentShaderData, seuil, comparaison):
     # Charger l'image
     image = Image.open(ImageName).convert('RGB') # on ouvre l'image et on la converti en RGB (pour supprimer le canal alpha si il existe)
     image_data = np.array(image).astype('f4') / 255.0  # Normaliser les couleurs (0.0 - 1.0)
@@ -51,8 +51,8 @@ def OpenGlEnv(ImageName, fragmentShaderData):
     )  
 
     prog['Resolution'] = (image.size[0], image.size[1]) # Récupérer la résolution de l'image (pour le calcul de la taille d'un pixel)
-    prog['comparaison'] = (COMPARAISONX, 0)  # on passe les paramètres dans le shader
-    prog['seuil'] = SEUIL 
+    prog['comparaison'] = (comparaison, 0)  # on passe les paramètres dans le shader
+    prog['seuil'] = seuil 
 
     # Définit la géométrie du rectangle à rendre (un quadrilatère couvrant tout l'écran)
     vertices = np.array([
@@ -91,15 +91,26 @@ def sobelFilter(ImageName):
     with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
         #'r' : read (lecture seule)
         data = myfile.read()
-    return OpenGlEnv(ImageName, data) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+    return OpenGlEnv(ImageName, data,0,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
 
+def canyFilter(ImageName, seuil):
+    with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    OpenGlEnv(ImageName, data,0,1).save(ImageName[:-4] + "_temp.png")
+    
+    with open ("canyFilter.frag", "r") as myfile:
+        data = myfile.read()
+    
+        
+    return OpenGlEnv(ImageName[:-4] + "_temp.png", data,seuil,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
 
 def differenceGaussian(ImageName):
     
     with open ("differenceGauss.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
         #'r' : read (lecture seule)
         data = myfile.read()
-    return OpenGlEnv(ImageName, data) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+    return OpenGlEnv(ImageName, data,0,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
 
     
 execution_times = {}
@@ -110,7 +121,7 @@ for i in range(1, 5):
         execution_times["Image "+str(i)] = []
         for j in range(1, 20):
             start = time.time()
-            img = sobelFilter(str(i)+".png")
+            img = canyFilter(str(i)+".png",1)
             end = time.time()
             elapsed = end - start
             execution_times["Image "+str(i)].append(elapsed)
@@ -118,7 +129,7 @@ for i in range(1, 5):
         elapsed_moy /= 10
         print("img "+str(i)+" : ", round (elapsed_moy * 1000), "ms")
     else:
-        sobelFilter(str(i)+".png").save("output\\output"+str(i)+".png")
+        canyFilter(str(i)+".png",1).save("output\\output"+str(i)+".png")
 
 colors = ['red', 'blue', 'green', 'orange']
 
