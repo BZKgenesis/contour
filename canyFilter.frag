@@ -22,26 +22,23 @@ float isHigest(float x, float y, vec2 uv, float alpha){
     }else{
         return 0.;
     }
-
-
 }
-
 
 
 
 
 void main()
 {
-    // On normalise les coordonné de pixel (0.0 - 1.0)
-    vec2 uv = v_texcoord; // on change simplement de nom pour plus de clarté
     // Normalized pixel coordinates (from 0 to 1)
+    vec2 uv = v_texcoord;
     float influ = 1.;
+    vec2 comparaison2;
+    comparaison2 = comparaison;
+    
+    
+    
     vec3 col;
-    if (v_texcoord.x < comparaison.x){ // si on est dans la première partie de l'image
-        col = vec3(isHigest(texture(Texture, uv).r*influ/Resolution.x,texture(Texture, uv).g*influ/Resolution.y,uv,seuil));
-    }else{
-        col = vec3(norm(texture(Texture,uv).rg));
-    }
+    col = vec3(isHigest(texture(Texture, uv).r*influ/Resolution.x,texture(Texture, uv).g*influ/Resolution.y,uv,seuil));
 
     // Output to screen
     fragColor = vec4(col,0.);
