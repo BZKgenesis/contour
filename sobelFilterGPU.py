@@ -1,79 +1,243 @@
-#version 330
+import numpy as np
+from PIL import Image
+import moderngl
+import time
+import matplotlib.pyplot as plt
 
-uniform sampler2D Texture; // uniform : variable qui ne change pas entre les différents pixels
-// sampler2D : type de variable qui contient une texture 2D ainsi que la méthode pour la lire et l'afficher
-in vec2 v_texcoord; // in : variable qui change entre les différents pixels c'est une variable d'entré (coordonnées de texture)
-// vec2 : type de variable qui contient deux float (x et y)
-uniform vec2 Resolution; 
-uniform vec2 comparaison;
-uniform float seuil;
-out vec4 fragColor; // out : variable qui change entre les différents pixels c'est une variable de sortie (couleur du pixel) (c'est le résultat de notre shader)
-// vec4 : type de variable qui contient 4 float (r,g,b,a) (rouge, vert, bleu, opacité)
+COMPARAISONX = 1. # Séparation de l'image pour pouvoir comparer avec et sans le filtre (0.0 - 1.0)
+SEUIL = 1.15 # Seuil de détection des contours (0.0 - 1.0)
+BENCHMARK = False # Passer en mode mesure de performance (True) ou en mode rendu (False)
 
-float getValue(vec2 pos){ // fonction qui retourne la valeur d'un pixel de la texture à la position pos en niveau de gris
-    // paramètres :
-    // pos : coordonnées du pixel
-    return (texture(Texture, pos).r + texture(Texture, pos).g + texture(Texture, pos).b)/3.; // on retourne la moyenne des trois composantes de couleur
-}
+# Création du contexte OpenGL
+ctx = moderngl.create_standalone_context()
+print("Vendor:", ctx.info['GL_VENDOR'])
+print("Renderer:", ctx.info['GL_RENDERER'])
+print("Version:", ctx.info['GL_VERSION'])
+#print("Shading Language Version:", ctx.info['GL_SHADING_LANGUAGE_VERSION'])
 
-
-// On sépare le filtre de sobel en deux fonctions pour pouvoir les appliquer séparément et avoir les coordonnées des gradients en x et en y
-float sobelX(float x, float y, vec2 uv){ // fonction qui retourne la valeur du filtre de sobel en x
-    // matrice de convolution pour le filtre de sobel
-    // -1  0  1
-    // -2  0  2
-    // -1  0  1
-
-    // paramètres :
-    // x : taille d'un pixel en x
-    // y : taille d'un pixel en y
-    // uv : coordonnées du pixel
-    return  -1*getValue(uv + vec2(-x, y))  +  0*getValue(uv + vec2(0, y))  +  1*getValue(uv + vec2( x, y)) + 
-            -2*getValue(uv + vec2(-x,0.))  +  0*getValue(uv + vec2(0, 0))  +  2*getValue(uv + vec2( x,0.)) +
-            -1*getValue(uv + vec2(-x,-y))  +  0*getValue(uv + vec2(0,-y))  +  1*getValue(uv + vec2( x,-y));
-}
-
-float sobelY(float x, float y, vec2 uv){ // fonction qui retourne la valeur du filtre de sobel en y
-    // matrice de convolution pour le filtre de sobel
-    // -1 -2 -1
-    //  0  0  0
-    //  1  2  1
-
-    // paramètres :
-    // x : taille d'un pixel en x
-    // y : taille d'un pixel en y
-    // uv : coordonnées du pixel
-    return   -getValue(uv + vec2(-x, y))  + -2*getValue(uv + vec2(0., y))  + -getValue(uv + vec2( x, y)) + 
-                 0                        +       0                        +     0                       +
-              getValue(uv + vec2(-x,-y))  +  2*getValue(uv + vec2(0.,-y))  +  getValue(uv + vec2( x,-y));
-}
+def OpenGlEnv(ImageName, fragmentShaderData, seuil, comparaison):
+    # Charger l'image
+    image = Image.open(ImageName).convert('RGB') # on ouvre l'image et on la converti en RGB (pour supprimer le canal alpha si il existe)
+    image_data = np.array(image).astype('f4') / 255.0  # Normaliser les couleurs (0.0 - 1.0)
+    # f4 : float 32 bits
 
 
-void main()
-{
-    // On normalise les coordonné de pixel (0.0 - 1.0)
-    vec2 uv = v_texcoord; // on change simplement de nom pour plus de clarté
+    # Création de la texture de l'image
+    texture = ctx.texture(image.size, 3, (image_data * 255).astype('u1').tobytes()) # on reprend l'image convertie en RGB et on la converti en 8 bits
+    #u1 : unsigned int 8 bits (0 - 255)
 
-    float pixelX = 1./Resolution.x; // on calcule la taille d'un pixel en x
-    float pixelY = 1./Resolution.y; // on calcule la taille d'un pixel en y
+    texture.build_mipmaps() # Générer les mipmaps pour le filtrage (sa sert a rien dans notre cas)
 
-    float sobelXVal = abs(sobelX(pixelX,pixelY,uv)); // on calcule la valeur du filtre de sobel en x
-    float sobelYVal = abs(sobelY(pixelX,pixelY,uv)); // on calcule la valeur du filtre de sobel en y
-    vec3 col; // on initialise la couleur du pixel
-    
+    # Créer un framebuffer pour le rendu de l'image avec le shader
+    fbo = ctx.framebuffer(color_attachments=[ctx.texture(image.size, 3)]) # on crée un framebuffer avec une texture de la taille de l'image
+    fbo.use() # on utilise le framebuffer
+    # fbo : framebuffer object (objet qui contient les textures de rendu)
 
-    if (v_texcoord.x < comparaison.x){ // si on est dans la première partie de l'image
-        if (sqrt(sobelXVal*sobelXVal + sobelYVal*sobelYVal)> seuil){ // si la norme (√(x²+y²)) du gradient est supérieur à un seuil 
-            col = vec3(sobelXVal,sobelYVal,0. ); // on affiche le gradient
-        }else
-        {
-            col = vec3(0.); // sinon on affiche du noir
+
+
+    # Création du programme (vertex + fragment shaders)
+    prog = ctx.program( # meme vertex shader pour tous car on ne touche pas aux vertex (on ne fait que passer les coordonnées de texture)
+        vertex_shader="""
+        #version 330
+        in vec2 in_vert;
+        in vec2 in_texcoord;
+        out vec2 v_texcoord;
+        void main() {
+            gl_Position = vec4(in_vert, 0.0, 1.0);
+            v_texcoord = in_texcoord;
         }
-    }else{
-        col = texture(Texture, uv).rgb; // sinon on affiche la texture
-    }
+        """,
+        fragment_shader=fragmentShaderData
+    )  
+
+    prog['Resolution'] = (image.size[0], image.size[1]) # Récupérer la résolution de l'image (pour le calcul de la taille d'un pixel)
+    prog['comparaison'] = (comparaison, 0)  # on passe les paramètres dans le shader
+    prog['seuil'] = seuil 
+
+    # Définit la géométrie du rectangle à rendre (un quadrilatère couvrant tout l'écran)
+    vertices = np.array([
+        # Positions    # Coordonnées de texture
+        -1.0,  1.0,    0.0, 1.0,
+        -1.0, -1.0,    0.0, 0.0,
+        1.0,  1.0,    1.0, 1.0,
+        1.0, -1.0,    1.0, 0.0,
+    ], dtype='f4') # on défini 2 triangles pour couvrir tout l'écran les coordonnées de géometrie sont en -1, 1 pour couvrir tout l'écran (centre en 0, 0 au milieu de l'écran)
+    # les coordonnées de texture sont en 0, 1 pour afficher toute la texture
+    #f4 : float 32 bits
+
+    vbo = ctx.buffer(vertices.tobytes())
+    vao = ctx.simple_vertex_array(prog, vbo, 'in_vert', 'in_texcoord')
+
+    # vbo : vertex buffer object (objet qui contient les données de géométrie)
+    # vao : vertex array object (objet qui contient les données de géométrie et le programme
 
 
-    // On retourne la couleur du pixel
-    fragColor = vec4(col,1.0); // on met l'opacité à 1
-}
+    # Utilisation de la texture et rendu
+    texture.use()
+    texture.filter = (moderngl.NEAREST, moderngl.NEAREST) # on utilise le filtrage nearest pour éviter les flous (pas d'intérpolation entre les pixels)
+    
+    vao.render(moderngl.TRIANGLE_STRIP) # on rend le quadrilatère (le type de rendu est TRIANGLE_STRIP car on a défini 2 triangles)
+
+    # Récupérer les données de l'image du framebuffer
+    data = fbo.read(components=3) # on récupère les données de l'image (3 composantes RGB)
+    output_image = Image.frombytes('RGB', image.size, data) # on crée une image à partir des données récupérées
+    output_image = output_image.crop((1, 1, image.size[0]-1, image.size[1]-1)) # on enlève les bords de l'image (qui sont faussés par le filtre)
+
+    # On retourne l'image
+    return output_image
+
+def OpenGlEnvCany(ImageName, fragmentShaderData, seuil):
+    # Charger l'image
+    image = Image.open(ImageName).convert('RGB') # on ouvre l'image et on la converti en RGB (pour supprimer le canal alpha si il existe)
+    image_data = np.array(image).astype('f4') / 255.0  # Normaliser les couleurs (0.0 - 1.0)
+    # f4 : float 32 bits
+
+
+    # Création de la texture de l'image
+    texture = ctx.texture(image.size, 3, (image_data * 255).astype('u1').tobytes()) # on reprend l'image convertie en RGB et on la converti en 8 bits
+    #u1 : unsigned int 8 bits (0 - 255)
+
+    texture.build_mipmaps() # Générer les mipmaps pour le filtrage (sa sert a rien dans notre cas)
+
+    # Créer un framebuffer pour le rendu de l'image avec le shader
+    fbo = ctx.framebuffer(color_attachments=[ctx.texture(image.size, 3)]) # on crée un framebuffer avec une texture de la taille de l'image
+    fbo.use() # on utilise le framebuffer
+    # fbo : framebuffer object (objet qui contient les textures de rendu)
+
+
+
+    # Création du programme (vertex + fragment shaders)
+    prog = ctx.program( # meme vertex shader pour tous car on ne touche pas aux vertex (on ne fait que passer les coordonnées de texture)
+        vertex_shader="""
+        #version 330
+        in vec2 in_vert;
+        in vec2 in_texcoord;
+        out vec2 v_texcoord;
+        void main() {
+            gl_Position = vec4(in_vert, 0.0, 1.0);
+            v_texcoord = in_texcoord;
+        }
+        """,
+        fragment_shader=fragmentShaderData
+    )  
+
+    prog['Resolution'] = (image.size[0], image.size[1]) # Récupérer la résolution de l'image (pour le calcul de la taille d'un pixel)
+    prog['seuil'] = seuil 
+
+    # Définit la géométrie du rectangle à rendre (un quadrilatère couvrant tout l'écran)
+    vertices = np.array([
+        # Positions    # Coordonnées de texture
+        -1.0,  1.0,    0.0, 1.0,
+        -1.0, -1.0,    0.0, 0.0,
+        1.0,  1.0,    1.0, 1.0,
+        1.0, -1.0,    1.0, 0.0,
+    ], dtype='f4') # on défini 2 triangles pour couvrir tout l'écran les coordonnées de géometrie sont en -1, 1 pour couvrir tout l'écran (centre en 0, 0 au milieu de l'écran)
+    # les coordonnées de texture sont en 0, 1 pour afficher toute la texture
+    #f4 : float 32 bits
+
+    vbo = ctx.buffer(vertices.tobytes())
+    vao = ctx.simple_vertex_array(prog, vbo, 'in_vert', 'in_texcoord')
+
+    # vbo : vertex buffer object (objet qui contient les données de géométrie)
+    # vao : vertex array object (objet qui contient les données de géométrie et le programme
+
+
+    # Utilisation de la texture et rendu
+    texture.use()
+    texture.filter = (moderngl.NEAREST, moderngl.NEAREST) # on utilise le filtrage nearest pour éviter les flous (pas d'intérpolation entre les pixels)
+    
+    vao.render(moderngl.TRIANGLE_STRIP) # on rend le quadrilatère (le type de rendu est TRIANGLE_STRIP car on a défini 2 triangles)
+
+    # Récupérer les données de l'image du framebuffer
+    data = fbo.read(components=3) # on récupère les données de l'image (3 composantes RGB)
+    output_image = Image.frombytes('RGB', image.size, data) # on crée une image à partir des données récupérées
+    output_image = output_image.crop((1, 1, image.size[0]-1, image.size[1]-1)) # on enlève les bords de l'image (qui sont faussés par le filtre)
+
+    # On retourne l'image
+    return output_image
+
+
+def sobelFilter(ImageName, sobelSeuil):
+    
+    with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    return OpenGlEnv(ImageName, data,sobelSeuil,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+def canyFilter(ImageName, canySeuil,sobelSeuil):
+    with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    OpenGlEnv(ImageName, data, sobelSeuil, 1).save(ImageName[:-4] + "_temp.png")
+    
+    with open ("canyFilter.frag", "r") as myfile:
+        data = myfile.read()
+    
+        
+    return OpenGlEnvCany(ImageName[:-4] + "_temp.png", data,canySeuil) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+def canyTest(ImageName, canySeuil):
+    with open ("canyFilter.frag", "r") as myfile:
+        data = myfile.read()
+    
+        
+    return OpenGlEnvCany(ImageName, data,canySeuil) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+def differenceGaussian(ImageName):
+    
+    with open ("differenceGauss.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    return OpenGlEnv(ImageName, data,0,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
+    
+execution_times = {}
+"""
+for i in range(1, 5):
+    if BENCHMARK:
+        elapsed_moy = 0
+        execution_times["Image "+str(i)] = []
+        for j in range(1, 20):
+            start = time.time()
+            img = canyFilter(str(i)+".png",1)
+            end = time.time()
+            elapsed = end - start
+            execution_times["Image "+str(i)].append(elapsed)
+            elapsed_moy += elapsed
+        elapsed_moy /= 10
+        print("img "+str(i)+" : ", round (elapsed_moy * 1000), "ms")
+    else:
+        canyFilter("imgCompteRendu"+str(i)+".png",1).save("output/imgCompteRendu_output"+str(i)+".png")
+"""
+
+canyTest("imgCompteRendu1.png",1.1).save("output/imgCompteRendu_output1.png")
+canyFilter("imgCompteRendu2.png",1,0).save("output/imgCompteRendu_output2.png")
+canyFilter("imgCompteRendu3.png",1,0).save("output/imgCompteRendu_output3.png")
+canyFilter("imgCompteRendu4.png",1,0).save("output/imgCompteRendu_output4.png")
+canyFilter("imgCompteRendu5.png",1,0).save("output/imgCompteRendu_output5.png")
+
+
+colors = ['red', 'blue', 'green', 'orange']
+
+if BENCHMARK:
+    
+    # Création du graphique
+    plt.figure(figsize=(10, 6))
+
+    # Tracer les lignes pour chaque image
+    for i, (image, times) in enumerate(execution_times.items()):
+        # Placer les points et les lignes
+        plt.plot(range(1, len(times) + 1), times, marker='o', color=colors[i], label=image)
+
+    # Configurer les labels et le titre
+    plt.xlabel('Essais')
+    plt.ylabel('Temps d\'exécution (secondes)')
+    plt.title('Comparaison des temps d\'exécution pour différentes images')
+    plt.yscale('log')
+    plt.xticks(range(1, len(next(iter(execution_times.values()))) + 1), [f'{i}' for i in range(1, len(next(iter(execution_times.values()))) + 1)])
+
+    # Ajouter la légende
+    plt.legend()
+
+    # Afficher le graphique
+    plt.show()
