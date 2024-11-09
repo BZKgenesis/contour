@@ -17,7 +17,7 @@ float norm(vec2 img){
 
 float isHigest(float x, float y, vec2 uv, float alpha){
     if (norm(texture(Texture, uv + vec2(x,y)).rg) < alpha*norm(texture(Texture, uv).rg) &&
-    norm(texture(Texture, uv + vec2(-x,-y)).rg) < alpha*norm(texture(Texture, uv).rg)){
+    norm(texture(Texture, uv - vec2(x,y)).rg) < alpha*norm(texture(Texture, uv).rg)){
         return 1.;
     }else{
         return 0.;
@@ -39,6 +39,7 @@ void main()
     
     vec3 col;
     col = vec3(isHigest(texture(Texture, uv).r*influ/Resolution.x,texture(Texture, uv).g*influ/Resolution.y,uv,seuil));
+
 
     // Output to screen
     fragColor = vec4(col,0.);

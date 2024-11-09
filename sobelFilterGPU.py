@@ -210,11 +210,11 @@ for i in range(1, 5):
         canyFilter("imgCompteRendu"+str(i)+".png",1).save("output/imgCompteRendu_output"+str(i)+".png")
 """
 
-canyTest("imgCompteRendu1.png",1.1).save("output/imgCompteRendu_output1.png")
-canyFilter("imgCompteRendu2.png",1,0).save("output/imgCompteRendu_output2.png")
-canyFilter("imgCompteRendu3.png",1,0).save("output/imgCompteRendu_output3.png")
+canyFilter("imgCompteRendu1.png",1.01,0.5).save("output/imgCompteRendu_output1.png")
+canyFilter("imgCompteRendu2.png",1.01,0.5).save("output/imgCompteRendu_output2.png")
+canyFilter("imgCompteRendu3.png",0.9,0.25).save("output/imgCompteRendu_output3.png")
 canyFilter("imgCompteRendu4.png",1,0).save("output/imgCompteRendu_output4.png")
-canyFilter("imgCompteRendu5.png",1,0).save("output/imgCompteRendu_output5.png")
+canyFilter("imgCompteRendu5.png",1.001,0.25).save("output/imgCompteRendu_output5.png")
 
 
 colors = ['red', 'blue', 'green', 'orange']
