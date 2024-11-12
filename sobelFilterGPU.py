@@ -210,8 +210,18 @@ for i in range(1, 5):
         canyFilter("imgCompteRendu"+str(i)+".png",1).save("output/imgCompteRendu_output"+str(i)+".png")
 """
 
-canyFilter("imgCompteRendu1.png",1.01,0.5).save("output/imgCompteRendu_output1.png")
-canyFilter("imgCompteRendu2.png",1.01,0.5).save("output/imgCompteRendu_output2.png")
+canyFilter("imgCompteRendu1.png",1.01,0.35).save("output/imgCompteRendu_output1.png")
+
+canyFilter("imgCompteRendu2.png",0.5,0.1).save("output/imgCompteRendu_output2_05_01.png")
+canyFilter("imgCompteRendu2.png",1,0.1).save("output/imgCompteRendu_output2_10_01.png")
+canyFilter("imgCompteRendu2.png",1.5,0.1).save("output/imgCompteRendu_output2_15_01.png")
+canyFilter("imgCompteRendu2.png",0.5,0.25).save("output/imgCompteRendu_output2_05_25.png")
+canyFilter("imgCompteRendu2.png",1,0.25).save("output/imgCompteRendu_output2_10_25.png")
+canyFilter("imgCompteRendu2.png",1.5,0.25).save("output/imgCompteRendu_output2_15_25.png")
+canyFilter("imgCompteRendu2.png",0.5,0.5).save("output/imgCompteRendu_output2_05_50.png")
+canyFilter("imgCompteRendu2.png",1,0.5).save("output/imgCompteRendu_output2_10_50.png")
+canyFilter("imgCompteRendu2.png",1.5,0.5).save("output/imgCompteRendu_output2_15_50.png")
+
 canyFilter("imgCompteRendu3.png",0.9,0.25).save("output/imgCompteRendu_output3.png")
 canyFilter("imgCompteRendu4.png",1,0).save("output/imgCompteRendu_output4.png")
 canyFilter("imgCompteRendu5.png",1.001,0.25).save("output/imgCompteRendu_output5.png")
