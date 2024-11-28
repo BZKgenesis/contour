@@ -164,6 +164,13 @@ def sobelFilter(ImageName, sobelSeuil):
         data = myfile.read()
     return OpenGlEnv(ImageName, data,sobelSeuil,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
 
+def prewittFilter(ImageName, prewittSeuil):
+    
+    with open ("prewittFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
+        #'r' : read (lecture seule)
+        data = myfile.read()
+    return OpenGlEnv(ImageName, data,prewittSeuil,1) # on appelle la fonction OpenGlEnv avec le nom de l'image et le shader
+
 def canyFilter(ImageName, canySeuil,sobelSeuil):
     with open ("sobelFilter.frag", "r") as myfile: # on ouvre le fichier contenant le shader (il est dans un fichier séparé pour plus de lisibilité)
         #'r' : read (lecture seule)
@@ -210,7 +217,7 @@ for i in range(1, 5):
         canyFilter("imgCompteRendu"+str(i)+".png",1).save("output/imgCompteRendu_output"+str(i)+".png")
 """
 
-canyFilter("imgCompteRendu1.png",1.01,0.35).save("output/imgCompteRendu_output1.png")
+"""canyFilter("imgCompteRendu1.png",1.01,0.35).save("output/imgCompteRendu_output1.png")
 
 canyFilter("imgCompteRendu2.png",0.5,0.1).save("output/imgCompteRendu_output2_05_01.png")
 canyFilter("imgCompteRendu2.png",1,0.1).save("output/imgCompteRendu_output2_10_01.png")
@@ -224,7 +231,19 @@ canyFilter("imgCompteRendu2.png",1.5,0.5).save("output/imgCompteRendu_output2_15
 
 canyFilter("imgCompteRendu3.png",0.9,0.25).save("output/imgCompteRendu_output3.png")
 canyFilter("imgCompteRendu4.png",1,0).save("output/imgCompteRendu_output4.png")
-canyFilter("imgCompteRendu5.png",1.001,0.25).save("output/imgCompteRendu_output5.png")
+canyFilter("imgCompteRendu5.png",1.001,0.25).save("output/imgCompteRendu_output5.png")"""
+
+sobelFilter("imgCompteRendu1.png",0.1).save("output/imgCompteRendu_sobel_01_output01.png")
+sobelFilter("imgCompteRendu2.png",0.1).save("output/imgCompteRendu_sobel_01_output02.png")
+sobelFilter("imgCompteRendu3.png",0.1).save("output/imgCompteRendu_sobel_01_output03.png")
+sobelFilter("imgCompteRendu4.png",0.1).save("output/imgCompteRendu_sobel_01_output04.png")
+sobelFilter("imgCompteRendu5.png",0.1).save("output/imgCompteRendu_sobel_01_output05.png")
+
+prewittFilter("imgCompteRendu1.png",0.1).save("output/imgCompteRendu_prewitt_01_output01.png")
+prewittFilter("imgCompteRendu2.png",0.1).save("output/imgCompteRendu_prewitt_01_output02.png")
+prewittFilter("imgCompteRendu3.png",0.1).save("output/imgCompteRendu_prewitt_01_output03.png")
+prewittFilter("imgCompteRendu4.png",0.1).save("output/imgCompteRendu_prewitt_01_output04.png")
+prewittFilter("imgCompteRendu5.png",0.1).save("output/imgCompteRendu_prewitt_01_output05.png")
 
 
 colors = ['red', 'blue', 'green', 'orange']

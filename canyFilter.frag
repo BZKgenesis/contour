@@ -24,9 +24,6 @@ float isHigest(float x, float y, vec2 uv, float alpha){
     }
 }
 
-
-
-
 void main()
 {
     // Normalized pixel coordinates (from 0 to 1)
@@ -34,8 +31,6 @@ void main()
     float influ = 1.;
     vec2 comparaison2;
     comparaison2 = comparaison;
-    
-    
     
     vec3 col;
     col = vec3(isHigest(texture(Texture, uv).r*influ/Resolution.x,texture(Texture, uv).g*influ/Resolution.y,uv,seuil));
