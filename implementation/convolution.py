@@ -53,3 +53,14 @@ image_resultat = appliquer_kernel(image, kernel)
 # Afficher le résultat
 for ligne in image_resultat:
     print(ligne)
+
+
+
+kernel = [[-1,-1,-1],
+          [-1, 8,-1],
+          [-1,-1,-1]]
+
+image_resultat = appliquer_kernel(image, kernel)
+
+
+          

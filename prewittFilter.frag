@@ -4,8 +4,7 @@ uniform sampler2D Texture; // uniform : variable qui ne change pas entre les dif
 // sampler2D : type de variable qui contient une texture 2D ainsi que la méthode pour la lire et l'afficher
 in vec2 v_texcoord; // in : variable qui change entre les différents pixels c'est une variable d'entré (coordonnées de texture)
 // vec2 : type de variable qui contient deux float (x et y)
-uniform vec2 Resolution; 
-uniform vec2 comparaison;
+uniform vec2 Resolution;
 uniform float seuil;
 out vec4 fragColor; // out : variable qui change entre les différents pixels c'est une variable de sortie (couleur du pixel) (c'est le résultat de notre shader)
 // vec4 : type de variable qui contient 4 float (r,g,b,a) (rouge, vert, bleu, opacité)
@@ -62,15 +61,11 @@ void main()
     vec3 col; // on initialise la couleur du pixel
     
 
-    if (v_texcoord.x < comparaison.x){ // si on est dans la première partie de l'image
-        if (sqrt(sobelXVal*sobelXVal + sobelYVal*sobelYVal)> seuil){ // si la norme (√(x²+y²)) du gradient est supérieur à un seuil 
-            col = vec3(sobelXVal,sobelYVal,0.); // on affiche le gradient
-        }else
-        {
-            col = vec3(0.); // sinon on affiche du noir
-        }
-    }else{
-        col = texture(Texture, uv).rgb; // sinon on affiche la texture
+    if (sqrt(sobelXVal*sobelXVal + sobelYVal*sobelYVal)> seuil){ // si la norme (√(x²+y²)) du gradient est supérieur à un seuil 
+        col = vec3(sobelXVal,sobelYVal,0.); // on affiche le gradient
+    }else
+    {
+        col = vec3(0.); // sinon on affiche du noir
     }
 
 

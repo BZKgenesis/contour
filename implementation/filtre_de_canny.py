@@ -184,7 +184,7 @@ def tableau_to_image(tableau, output_path):
     print(f"Image enregistrée à : {output_path}")
 
 
-chemin_image = "image1.jpg"  # Remplacez par le chemin de votre image
+chemin_image = "image.jpg"  # Remplacez par le chemin de votre image
 tableau = image_to_tableau(chemin_image)
 
 resultat = filtre_canny(image_to_tableau(chemin_image), seuil_bas=50, seuil_haut=100)
